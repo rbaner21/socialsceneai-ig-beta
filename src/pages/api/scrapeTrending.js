@@ -1,47 +1,50 @@
 // src/pages/api/scrapeTrending.js
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import axios from 'axios'
-import { supabase } from '@/lib/supabaseClient'
+
+// your exact niche list—keep it in sync with your frontend
+const NICHES = [
+  'Fitness','Beauty & Fashion','Food & Cooking','Travel',
+  'Tech & Gadgets','DIY & Crafts','Parenting & Family','Gaming',
+  'Comedy & Entertainment','Art & Illustration','Music & Performance',
+  'Photography','Health & Wellness','Finance & Investing','Home Decor',
+  'Pets & Animals','Education & Learning','Sports & Outdoor',
+  'Automotive','Lifestyle & Inspiration',
+]
 
 export default async function handler(req, res) {
-  // List of niches
-  const niches = [
-    'Fitness','Beauty & Fashion','Food & Cooking','Travel','Tech & Gadgets',
-    'DIY & Crafts','Parenting & Family','Gaming','Comedy & Entertainment',
-    'Art & Illustration','Music & Performance','Photography','Health & Wellness',
-    'Finance & Investing','Home Decor','Pets & Animals','Education & Learning',
-    'Sports & Outdoor','Automotive','Lifestyle & Inspiration'
-  ]
-
   try {
-    for (const tag of niches) {
-      // 1) Call Apify actor
-      const { data } = await axios.post(
-        `https://api.apify.com/v2/acts/${process.env.APIFY_ACTOR_ID}/run-sync?token=${process.env.APIFY_TOKEN}`,
-        {
-          searchMode: 'hashtag',
-          searchQuery: tag,
-          resultsLimit: 200,
-        }
+    const actorId = process.env.APIFY_ACTOR_ID
+    const token   = process.env.APIFY_TOKEN
+    if (!actorId || !token) throw new Error('Missing APIFY_ACTOR_ID or APIFY_TOKEN')
+
+    for (const tag of NICHES) {
+      // 1) Run the Instagram Scraper actor in “hashtag” mode
+      const run = await axios.post(
+        `https://api.apify.com/v2/acts/${actorId}/run-sync?token=${token}`,
+        { searchMode: 'hashtag', searchQuery: tag, resultsLimit: 200 }
       )
-      // 2) Upsert into Supabase
-      for (const item of data.items) {
-        await supabase.from('trending_posts').upsert({
-          ig_post_id: item.id,
-          image_url: item.imageUrl,
-          metrics: {
-            likes: item.likes,
-            comments: item.comments,
-            saves: item.bookmarks,
-            views: item.views,
-            avgWatchTime: item.avgWatchTime,
-          },
-          fetched_at: new Date().toISOString(),
-        })
+
+      const items = run.data.items || []
+      // 2) Upsert each result into your `trending_posts` table
+      for (const item of items) {
+        const { id, imageUrl, likes, comments, bookmarks, views, avgWatchTime } = item
+        await supabaseAdmin
+          .from('trending_posts')
+          .upsert(
+            {
+              ig_post_id: id,
+              image_url: imageUrl,
+              metrics: { likes, comments, saves: bookmarks, views, avgWatchTime },
+            },
+            { onConflict: ['ig_post_id'] }
+          )
       }
     }
+
     return res.status(200).json({ ok: true })
-  } catch (e) {
-    console.error(e)
-    return res.status(500).json({ error: e.message })
+  } catch (err) {
+    console.error('🛑 /api/scrapeTrending error:', err)
+    return res.status(500).json({ error: err.message })
   }
 }
