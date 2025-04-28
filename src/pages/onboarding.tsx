@@ -10,23 +10,25 @@ export default function Onboarding() {
   const [niche, setNiche] = useState('Fitness')
 
   const signUp = async () => {
-    // 1) Sign up user
+    // 1) Create the new user
     const { error: signUpError } = await supabase.auth.signUp({
       email,
       password,
     })
-    if (signUpError) return alert(signUpError.message)
+    if (signUpError) {
+      return alert(signUpError.message)
+    }
 
-    // 2) Immediately sign them back in to establish a session
+    // 2) Immediately sign them in to establish a session
     const { data: signInData, error: signInError } =
-      await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-    if (signInError) return alert(signInError.message)
-
+      await supabase.auth.signInWithPassword({ email, password })
+    if (signInError) {
+      return alert(signInError.message)
+    }
     const user = signInData.user
-    if (!user) return alert('User not found after sign-in')
+    if (!user) {
+      return alert('Unexpected error: no user after sign-in')
+    }
 
     // 3) Create their profile record
     const profileRes = await fetch('/api/profile', {
@@ -43,7 +45,7 @@ export default function Onboarding() {
       return alert(error || 'Error creating profile')
     }
 
-    // 4) Redirect to feed
+    // 4) Send them to the feed
     window.location.href = '/feed'
   }
 
@@ -76,30 +78,13 @@ export default function Onboarding() {
         onChange={(e) => setNiche(e.target.value)}
       >
         {[
-          'Fitness',
-          'Beauty & Fashion',
-          'Food & Cooking',
-          'Travel',
-          'Tech & Gadgets',
-          'DIY & Crafts',
-          'Parenting & Family',
-          'Gaming',
-          'Comedy & Entertainment',
-          'Art & Illustration',
-          'Music & Performance',
-          'Photography',
-          'Health & Wellness',
-          'Finance & Investing',
-          'Home Decor',
-          'Pets & Animals',
-          'Education & Learning',
-          'Sports & Outdoor',
-          'Automotive',
-          'Lifestyle & Inspiration',
+          'Fitness','Beauty & Fashion','Food & Cooking','Travel','Tech & Gadgets',
+          'DIY & Crafts','Parenting & Family','Gaming','Comedy & Entertainment',
+          'Art & Illustration','Music & Performance','Photography','Health & Wellness',
+          'Finance & Investing','Home Decor','Pets & Animals','Education & Learning',
+          'Sports & Outdoor','Automotive','Lifestyle & Inspiration'
         ].map((n) => (
-          <option key={n} value={n}>
-            {n}
-          </option>
+          <option key={n} value={n}>{n}</option>
         ))}
       </select>
       <button
