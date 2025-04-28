@@ -2,7 +2,7 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import axios from 'axios'
 
-// your exact niche list—keep it in sync with your frontend
+// same niche list you use elsewhere
 const NICHES = [
   'Fitness','Beauty & Fashion','Food & Cooking','Travel',
   'Tech & Gadgets','DIY & Crafts','Parenting & Family','Gaming',
@@ -14,19 +14,21 @@ const NICHES = [
 
 export default async function handler(req, res) {
   try {
-    const actorId = process.env.APIFY_ACTOR_ID
+    const actorId = process.env.APIFY_ACTOR_ID      // should be "apify~instagram-scraper"
     const token   = process.env.APIFY_TOKEN
     if (!actorId || !token) throw new Error('Missing APIFY_ACTOR_ID or APIFY_TOKEN')
 
     for (const tag of NICHES) {
-      // 1) Run the Instagram Scraper actor in “hashtag” mode
+      // 1) Run the actor and pull its dataset items
       const run = await axios.post(
-        `https://api.apify.com/v2/acts/${actorId}/run-sync?token=${token}`,
-        { searchMode: 'hashtag', searchQuery: tag, resultsLimit: 200 }
+        `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items?token=${token}`,
+        { searchMode: 'hashtag', searchQuery: tag, resultsLimit: 200 },
+        { headers: { 'Content-Type': 'application/json' } }
       )
+      // run.data **is** the array of items in the dataset
+      const items = Array.isArray(run.data) ? run.data : []
 
-      const items = run.data.items || []
-      // 2) Upsert each result into your `trending_posts` table
+      // 2) Upsert each scraped post into trending_posts
       for (const item of items) {
         const { id, imageUrl, likes, comments, bookmarks, views, avgWatchTime } = item
         await supabaseAdmin
