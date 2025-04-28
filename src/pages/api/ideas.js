@@ -2,10 +2,7 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 export default async function handler(req, res) {
-  // 1) read Bearer token
   const token = (req.headers.authorization || '').split(' ')[1] || ''
-
-  // 2) authenticate
   const {
     data: { user },
     error: userErr,
@@ -14,7 +11,6 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Not signed in' })
   }
 
-  // 3) load today’s cards
   const today = new Date().toISOString().slice(0, 10)
   const { data, error } = await supabaseAdmin
     .from('idea_cards')
@@ -23,10 +19,10 @@ export default async function handler(req, res) {
     .eq('issued_date', today)
 
   if (error) {
+    console.error('🛑 /api/ideas error:', error)
     return res.status(500).json({ error: error.message })
   }
 
-  // 4) map & return
   const ideas = data.map((r) => ({
     id: r.id,
     prompt: r.prompt,
@@ -34,5 +30,5 @@ export default async function handler(req, res) {
     hashtags: r.hashtags,
     thumbnail: r.image_url,
   }))
-  res.status(200).json({ ideas })
+  return res.status(200).json({ ideas })
 }
