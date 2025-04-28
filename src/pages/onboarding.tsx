@@ -45,26 +45,27 @@ export default function Onboarding() {
     <div className="p-8 max-w-md mx-auto">
       <h1 className="text-2xl mb-4">SocialSceneAI IG Beta</h1>
       <input
-        className="block mb-2 w-full p-2 border"
+        className="block mb-2 w-full p-2 border rounded"
         placeholder="Email"
+        type="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
       />
       <input
-        className="block mb-2 w-full p-2 border"
+        className="block mb-2 w-full p-2 border rounded"
         type="password"
         placeholder="Password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
       />
       <input
-        className="block mb-2 w-full p-2 border"
+        className="block mb-2 w-full p-2 border rounded"
         placeholder="Instagram handle"
         value={handle}
         onChange={(e) => setHandle(e.target.value)}
       />
       <select
-        className="block mb-4 w-full p-2 border"
+        className="block mb-4 w-full p-2 border rounded"
         value={niche}
         onChange={(e) => setNiche(e.target.value)}
       >
@@ -90,15 +91,23 @@ export default function Onboarding() {
           'Automotive',
           'Lifestyle & Inspiration',
         ].map((n) => (
-          <option key={n}>{n}</option>
+          <option key={n} value={n}>
+            {n}
+          </option>
         ))}
       </select>
       <button
         onClick={signUp}
-        className="px-4 py-2 bg-blue-600 text-white rounded"
+        className="w-full px-4 py-2 bg-blue-600 text-white rounded"
       >
         Sign Up
       </button>
+      <p className="text-sm mt-4 text-center">
+        Already have an account?{' '}
+        <a href="/signin" className="text-blue-500 underline">
+          Sign In
+        </a>
+      </p>
     </div>
   )
 }
