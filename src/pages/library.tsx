@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import useSWR from 'swr'
+import { useRouter } from 'next/router'
 
 interface IdeaCard {
   id: string
@@ -10,12 +11,21 @@ interface IdeaCard {
   issued_date: string
 }
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json())
+const fetcher = async (url: string) => {
+  const res = await fetch(url, { credentials: 'include' })
+  if (res.status === 401) {
+    window.location.href = '/signin'
+    return { ideas: [] }
+  }
+  return res.json()
+}
 
 export default function Library() {
   const { data, error } = useSWR<{ ideas: IdeaCard[] }>('/api/library', fetcher)
+
   if (error) return <div>Error loading library</div>
   if (!data) return <div>Loading…</div>
+
   return (
     <div className="p-4">
       <h1 className="text-xl mb-4">Your Saved Ideas</h1>
@@ -37,7 +47,9 @@ export default function Library() {
                 </span>
               ))}
             </div>
-            <p className="mt-2 text-gray-500 text-xs">Saved on {c.issued_date}</p>
+            <p className="mt-2 text-gray-500 text-xs">
+              Saved on {c.issued_date}
+            </p>
           </div>
         ))}
       </div>

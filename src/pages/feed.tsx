@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import useSWR from 'swr'
+import { useRouter } from 'next/router'
 
 interface IdeaCard {
   id: string
@@ -8,25 +9,55 @@ interface IdeaCard {
   hashtags: string[]
   thumbnail: string
 }
-const fetcher = (url: string) => fetch(url).then(r=>r.json())
+
+const fetcher = async (url: string) => {
+  const res = await fetch(url, { credentials: 'include' })
+  if (res.status === 401) {
+    // Not signed in: redirect
+    window.location.href = '/signin'
+    return { ideas: [] }
+  }
+  return res.json()
+}
 
 export default function Feed() {
+  const router = useRouter()
   const { data, error } = useSWR<{ ideas: IdeaCard[] }>('/api/ideas', fetcher)
+
   if (error) return <div className="p-4 text-red-600">Error loading ideas</div>
   if (!data) return <div className="p-4">Loading…</div>
+
   return (
     <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      {data.ideas.map(card => (
+      {data.ideas.map((card) => (
         <div key={card.id} className="border rounded-lg p-4 shadow">
-          <img src={card.thumbnail} alt="" className="w-full h-40 object-cover rounded"/>
+          <img
+            src={card.thumbnail}
+            alt=""
+            className="w-full h-40 object-cover rounded"
+          />
           <h3 className="font-semibold mt-3">{card.prompt}</h3>
           <p className="text-sm mt-1">{card.caption}</p>
           <div className="flex flex-wrap mt-2 text-blue-600 text-xs">
-            {card.hashtags.map(ht => <span key={ht} className="mr-2">#{ht}</span>)}
+            {card.hashtags.map((ht) => (
+              <span key={ht} className="mr-2">
+                #{ht}
+              </span>
+            ))}
           </div>
           <div className="mt-4 flex space-x-4">
-            <button onClick={()=>vote(card.id,'save')} className="underline text-green-600">Save</button>
-            <button onClick={()=>vote(card.id,'dismiss')} className="underline text-red-600">Dismiss</button>
+            <button
+              onClick={() => vote(card.id, 'save')}
+              className="underline text-green-600"
+            >
+              Save
+            </button>
+            <button
+              onClick={() => vote(card.id, 'dismiss')}
+              className="underline text-red-600"
+            >
+              Dismiss
+            </button>
           </div>
         </div>
       ))}
@@ -34,11 +65,12 @@ export default function Feed() {
   )
 }
 
-async function vote(id: string, action: 'save'|'dismiss') {
+async function vote(id: string, action: 'save' | 'dismiss') {
   await fetch('/api/feedback', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ idea_card_id: id, action })
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idea_card_id: id, action }),
   })
   window.location.reload()
 }
