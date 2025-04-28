@@ -1,5 +1,6 @@
 // src/pages/signin.tsx
 import { useState } from 'react'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabaseClient'
 
 export default function SignIn() {
@@ -7,12 +8,11 @@ export default function SignIn() {
   const [password, setPassword] = useState('')
 
   const signIn = async () => {
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
-    if (error) return alert(error.message)
-    // On success, send them to the feed
+    if (signInError) return alert(signInError.message)
     window.location.href = '/feed'
   }
 
@@ -20,13 +20,14 @@ export default function SignIn() {
     <div className="p-8 max-w-md mx-auto">
       <h1 className="text-2xl mb-4">Welcome Back</h1>
       <input
-        className="block mb-2 w-full p-2 border"
+        className="block mb-2 w-full p-2 border rounded"
         placeholder="Email"
+        type="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
       />
       <input
-        className="block mb-4 w-full p-2 border"
+        className="block mb-4 w-full p-2 border rounded"
         type="password"
         placeholder="Password"
         value={password}
@@ -34,15 +35,15 @@ export default function SignIn() {
       />
       <button
         onClick={signIn}
-        className="px-4 py-2 bg-green-600 text-white rounded mb-4"
+        className="w-full px-4 py-2 bg-green-600 text-white rounded mb-4"
       >
         Sign In
       </button>
-      <p className="text-sm">
+      <p className="text-sm text-center">
         Don’t have an account?{' '}
-        <a href="/onboarding" className="text-blue-500 underline">
+        <Link href="/onboarding" className="text-blue-500 underline">
           Sign Up
-        </a>
+        </Link>
       </p>
     </div>
   )

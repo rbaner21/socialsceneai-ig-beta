@@ -1,5 +1,6 @@
 // src/pages/onboarding.tsx
 import { useState } from 'react'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabaseClient'
 
 export default function Onboarding() {
@@ -9,19 +10,11 @@ export default function Onboarding() {
   const [niche, setNiche] = useState('Fitness')
 
   const signUp = async () => {
-    // 1) Sign up with Supabase
-    const {
-      data,
-      error: signUpError,
-    } = await supabase.auth.signUp({ email, password })
-
-    // 2) Extract the user safely
+    const { data, error: signUpError } = await supabase.auth.signUp({ email, password })
     const user = data?.user
     if (signUpError || !user) {
       return alert(signUpError?.message || 'Error signing up')
     }
-
-    // 3) Create their profile record
     const profileRes = await fetch('/api/profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -31,13 +24,10 @@ export default function Onboarding() {
         niche,
       }),
     })
-
     if (!profileRes.ok) {
       const { error } = await profileRes.json()
       return alert(error || 'Error creating profile')
     }
-
-    // 4) Redirect to the feed
     window.location.href = '/feed'
   }
 
@@ -104,9 +94,9 @@ export default function Onboarding() {
       </button>
       <p className="text-sm mt-4 text-center">
         Already have an account?{' '}
-        <a href="/signin" className="text-blue-500 underline">
+        <Link href="/signin" className="text-blue-500 underline">
           Sign In
-        </a>
+        </Link>
       </p>
     </div>
   )
