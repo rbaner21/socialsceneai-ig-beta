@@ -3,12 +3,10 @@ import { supabase } from '@/lib/supabaseClient'
 
 export default async function handler(req, res) {
   const token = (req.headers.authorization || '').split(' ')[1] || ''
-  supabase.auth.setAuth(token)
-
   const {
     data: { user },
     error: userErr,
-  } = await supabase.auth.getUser()
+  } = await supabase.auth.getUser(token)
   if (userErr || !user) {
     return res.status(401).json({ error: 'Not signed in' })
   }

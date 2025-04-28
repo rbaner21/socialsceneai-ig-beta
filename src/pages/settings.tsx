@@ -17,9 +17,7 @@ const fetcher = async (url: string) => {
   }
 
   const res = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${session.access_token}`,
-    },
+    headers: { Authorization: `Bearer ${session.access_token}` },
   })
   if (res.status === 401) {
     window.location.href = '/signin'

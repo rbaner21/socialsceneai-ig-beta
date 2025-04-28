@@ -11,7 +11,7 @@ interface IdeaCard {
 }
 
 const fetcher = async (url: string) => {
-  // 1) Grab the current Supabase session
+  // Grab our session (holds the access_token)
   const {
     data: { session },
   } = await supabase.auth.getSession()
@@ -20,11 +20,9 @@ const fetcher = async (url: string) => {
     return { ideas: [] }
   }
 
-  // 2) Call the API with the Bearer token
+  // Call the API with that token
   const res = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${session.access_token}`,
-    },
+    headers: { Authorization: `Bearer ${session.access_token}` },
   })
   if (res.status === 401) {
     window.location.href = '/signin'
