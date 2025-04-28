@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import useSWR from 'swr'
+import { supabase } from '@/lib/supabaseClient'
 
 interface IdeaCard {
   id: string
@@ -10,7 +11,21 @@ interface IdeaCard {
 }
 
 const fetcher = async (url: string) => {
-  const res = await fetch(url, { credentials: 'include' })
+  // 1) Grab the current Supabase session
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  if (!session) {
+    window.location.href = '/signin'
+    return { ideas: [] }
+  }
+
+  // 2) Call the API with the Bearer token
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
+  })
   if (res.status === 401) {
     window.location.href = '/signin'
     return { ideas: [] }
@@ -63,10 +78,15 @@ export default function Feed() {
 }
 
 async function vote(id: string, action: 'save' | 'dismiss') {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
   await fetch('/api/feedback', {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session?.access_token}`,
+    },
     body: JSON.stringify({ idea_card_id: id, action }),
   })
   window.location.reload()

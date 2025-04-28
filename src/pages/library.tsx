@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import useSWR from 'swr'
+import { supabase } from '@/lib/supabaseClient'
 
 interface IdeaCard {
   id: string
@@ -11,7 +12,19 @@ interface IdeaCard {
 }
 
 const fetcher = async (url: string) => {
-  const res = await fetch(url, { credentials: 'include' })
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  if (!session) {
+    window.location.href = '/signin'
+    return { ideas: [] }
+  }
+
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
+  })
   if (res.status === 401) {
     window.location.href = '/signin'
     return { ideas: [] }
@@ -34,7 +47,7 @@ export default function Library() {
           <div key={c.id} className="border rounded-lg p-4 shadow">
             <img
               src={c.thumbnail}
-              alt="Example"
+              alt=""
               className="w-full h-40 object-cover rounded"
             />
             <p className="font-semibold mt-2">{c.prompt}</p>

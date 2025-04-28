@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import useSWR from 'swr'
+import { supabase } from '@/lib/supabaseClient'
 
 interface Profile {
   instagram_handle: string
@@ -7,7 +8,19 @@ interface Profile {
 }
 
 const fetcher = async (url: string) => {
-  const res = await fetch(url, { credentials: 'include' })
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  if (!session) {
+    window.location.href = '/signin'
+    return {} as Profile
+  }
+
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
+  })
   if (res.status === 401) {
     window.location.href = '/signin'
     return {} as Profile
@@ -28,14 +41,18 @@ export default function Settings() {
   }, [data])
 
   const save = async () => {
-    const res = await fetch('/api/profile', {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    await fetch('/api/profile', {
       method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session?.access_token}`,
+      },
       body: JSON.stringify({ instagram_handle: handle, niche }),
     })
-    if (!res.ok) alert('Error saving settings')
-    else alert('Settings saved!')
+    alert('Settings saved!')
   }
 
   if (error) return <div className="p-4 text-red-600">Error loading profile</div>
