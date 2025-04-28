@@ -2,15 +2,13 @@
 import { supabase } from '@/lib/supabaseClient'
 
 export default async function handler(req, res) {
-  // Fetch all raw trending posts
-  const { data: posts, error: fetchError } = await supabase
+  // 1) Fetch raw trending posts
+  const { data: posts, error } = await supabase
     .from('trending_posts')
     .select('*')
-  if (fetchError) {
-    return res.status(500).json({ error: fetchError.message })
-  }
+  if (error) return res.status(500).json({ error: error.message })
 
-  // Compute & upsert signals
+  // 2) Compute signals & upsert
   for (const p of posts) {
     const m = p.metrics
     const ageHrs = (Date.now() - new Date(p.fetched_at).getTime()) / 36e5
