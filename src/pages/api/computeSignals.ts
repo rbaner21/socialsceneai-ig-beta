@@ -1,4 +1,4 @@
-// src/pages/api/computeSignals.ts
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { supabase } from '@/lib/supabaseClient'
 
@@ -7,7 +7,9 @@ export default async function handler(_: NextApiRequest, res: NextApiResponse) {
   const { data: posts, error: fetchError } = await supabase
     .from('trending_posts')
     .select('*')
-  if (fetchError) return res.status(500).json({ error: fetchError.message })
+  if (fetchError) {
+    return res.status(500).json({ error: fetchError.message })
+  }
 
   // Compute & upsert signals
   for (const p of posts) {
