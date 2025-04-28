@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import useSWR from 'swr'
-import { useRouter } from 'next/router'
 
 interface Profile {
   instagram_handle: string
@@ -17,7 +16,6 @@ const fetcher = async (url: string) => {
 }
 
 export default function Settings() {
-  const router = useRouter()
   const { data, error } = useSWR<Profile>('/api/profile', fetcher)
   const [handle, setHandle] = useState('')
   const [niche, setNiche] = useState('')
@@ -36,15 +34,12 @@ export default function Settings() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ instagram_handle: handle, niche }),
     })
-    if (!res.ok) {
-      alert('Error saving settings')
-    } else {
-      alert('Settings saved!')
-    }
+    if (!res.ok) alert('Error saving settings')
+    else alert('Settings saved!')
   }
 
-  if (error) return <div>Error loading profile</div>
-  if (!data) return <div>Loading…</div>
+  if (error) return <div className="p-4 text-red-600">Error loading profile</div>
+  if (!data) return <div className="p-4">Loading…</div>
 
   return (
     <div className="p-4 max-w-md mx-auto">
@@ -90,7 +85,7 @@ export default function Settings() {
       </select>
       <button
         onClick={save}
-        className="px-4 py-2 bg-blue-600 text-white rounded"
+        className="w-full px-4 py-2 bg-blue-600 text-white rounded"
       >
         Save Settings
       </button>

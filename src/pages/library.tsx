@@ -1,6 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
 import useSWR from 'swr'
-import { useRouter } from 'next/router'
 
 interface IdeaCard {
   id: string
@@ -23,8 +22,8 @@ const fetcher = async (url: string) => {
 export default function Library() {
   const { data, error } = useSWR<{ ideas: IdeaCard[] }>('/api/library', fetcher)
 
-  if (error) return <div>Error loading library</div>
-  if (!data) return <div>Loading…</div>
+  if (error) return <div className="p-4 text-red-600">Error loading library</div>
+  if (!data) return <div className="p-4">Loading…</div>
 
   return (
     <div className="p-4">

@@ -1,6 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
 import useSWR from 'swr'
-import { useRouter } from 'next/router'
 
 interface IdeaCard {
   id: string
@@ -13,7 +12,6 @@ interface IdeaCard {
 const fetcher = async (url: string) => {
   const res = await fetch(url, { credentials: 'include' })
   if (res.status === 401) {
-    // Not signed in: redirect
     window.location.href = '/signin'
     return { ideas: [] }
   }
@@ -21,7 +19,6 @@ const fetcher = async (url: string) => {
 }
 
 export default function Feed() {
-  const router = useRouter()
   const { data, error } = useSWR<{ ideas: IdeaCard[] }>('/api/ideas', fetcher)
 
   if (error) return <div className="p-4 text-red-600">Error loading ideas</div>
