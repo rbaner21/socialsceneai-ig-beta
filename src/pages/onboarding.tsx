@@ -10,11 +10,20 @@ export default function Onboarding() {
   const [niche, setNiche] = useState('Fitness')
 
   const signUp = async () => {
-    const { data, error: signUpError } = await supabase.auth.signUp({ email, password })
-    const user = data?.user
-    if (signUpError || !user) {
-      return alert(signUpError?.message || 'Error signing up')
-    }
+    // 1) Sign up
+    const { data: signUpData, error: signUpError } =
+      await supabase.auth.signUp({ email, password })
+    if (signUpError) return alert(signUpError.message)
+
+    // 2) Immediately sign them in
+    const { data: signInData, error: signInError } =
+      await supabase.auth.signInWithPassword({ email, password })
+    if (signInError) return alert(signInError.message)
+
+    // 3) Now we have a session cookie, so we can call our protected profile API
+    const user = signInData.user
+    if (!user) return alert('Could not get user after sign-in')
+
     const profileRes = await fetch('/api/profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -28,6 +37,8 @@ export default function Onboarding() {
       const { error } = await profileRes.json()
       return alert(error || 'Error creating profile')
     }
+
+    // 4) Redirect to the feed
     window.location.href = '/feed'
   }
 
@@ -36,8 +47,8 @@ export default function Onboarding() {
       <h1 className="text-2xl mb-4">SocialSceneAI IG Beta</h1>
       <input
         className="block mb-2 w-full p-2 border rounded"
-        placeholder="Email"
         type="email"
+        placeholder="Email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
       />
@@ -60,26 +71,11 @@ export default function Onboarding() {
         onChange={(e) => setNiche(e.target.value)}
       >
         {[
-          'Fitness',
-          'Beauty & Fashion',
-          'Food & Cooking',
-          'Travel',
-          'Tech & Gadgets',
-          'DIY & Crafts',
-          'Parenting & Family',
-          'Gaming',
-          'Comedy & Entertainment',
-          'Art & Illustration',
-          'Music & Performance',
-          'Photography',
-          'Health & Wellness',
-          'Finance & Investing',
-          'Home Decor',
-          'Pets & Animals',
-          'Education & Learning',
-          'Sports & Outdoor',
-          'Automotive',
-          'Lifestyle & Inspiration',
+          'Fitness','Beauty & Fashion','Food & Cooking','Travel','Tech & Gadgets',
+          'DIY & Crafts','Parenting & Family','Gaming','Comedy & Entertainment',
+          'Art & Illustration','Music & Performance','Photography','Health & Wellness',
+          'Finance & Investing','Home Decor','Pets & Animals','Education & Learning',
+          'Sports & Outdoor','Automotive','Lifestyle & Inspiration'
         ].map((n) => (
           <option key={n} value={n}>
             {n}
