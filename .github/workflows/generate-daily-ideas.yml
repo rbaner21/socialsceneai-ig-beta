@@ -1,0 +1,20 @@
+# .github/workflows/generate-daily-ideas.yml
+name: Generate Daily Idea Cards
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # daily at 2:00 UTC
+
+jobs:
+  daily-generate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Call GenerateDailyIdeas API
+        env:
+          VERCEL_APP:             ${{ secrets.VERCEL_APP_DOMAIN }}         # e.g. socialsceneai-ig-beta-h8ec.vercel.app
+          SUPABASE_SERVICE_KEY:   ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          curl -s -X GET "https://${VERCEL_APP}/api/generateDailyIdeas" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
+          && echo "✅ Daily ideas generated"
