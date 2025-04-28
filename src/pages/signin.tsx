@@ -8,28 +8,39 @@ export default function SignIn() {
   const [password, setPassword] = useState('')
 
   const signIn = async () => {
-    // 1) Sign in with email+password
-    const { data: signInData, error: signInError } =
+    // 1) Sign in
+    const { data: loginData, error: loginError } =
       await supabase.auth.signInWithPassword({ email, password })
-    if (signInError) {
-      return alert(signInError.message)
+    if (loginError) {
+      return alert(loginError.message)
     }
-    const session = signInData.session
+    const session = loginData.session
     if (!session) {
       return alert('Unexpected error: no session returned')
     }
+    const token = session.access_token
 
-    // 2) Trigger initial idea generation
-    const genRes = await fetch('/api/generateDailyIdeas', {
-      headers: {
-        Authorization: `Bearer ${session.access_token}`,
-      },
+    // 2) Fetch today's ideas
+    const ideasRes = await fetch('/api/ideas', {
+      headers: { Authorization: `Bearer ${token}` },
     })
-    if (!genRes.ok) {
-      console.warn('Warning: initial idea generation failed')
+    if (ideasRes.status === 401) {
+      // Not signed in? shouldn't happen, but redirect
+      return (window.location.href = '/signin')
+    }
+    const { ideas } = await ideasRes.json()
+
+    // 3) If no ideas yet for today, generate 10 now
+    if (!ideas?.length) {
+      const genRes = await fetch('/api/generateDailyIdeas', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!genRes.ok) {
+        console.warn('Could not generate initial ideas:', await genRes.text())
+      }
     }
 
-    // 3) Send them to the feed
+    // 4) Finally, send them to the feed
     window.location.href = '/feed'
   }
 
