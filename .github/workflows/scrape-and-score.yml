@@ -3,19 +3,22 @@ name: Scrape & Score Trending Posts
 
 on:
   schedule:
-    - cron:  '0 * * * *'  # every hour
+    - cron: '0 * * * *'   # every hour
 
 jobs:
   scrape-score:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
 
-      - name: Scrape Instagram Hashtags
+      - name: Scrape Instagram & Upsert trending_posts
         env:
           APIFY_ACTOR_ID: ${{ secrets.APIFY_ACTOR_ID }}
           APIFY_TOKEN:    ${{ secrets.APIFY_TOKEN }}
@@ -30,59 +33,75 @@ jobs:
             "Pets & Animals" "Education & Learning" "Sports & Outdoor"
             Automotive "Lifestyle & Inspiration"
           )
+
           for tag in "${niches[@]}"; do
+            echo "➡️ Scraping #$tag"
             data=$(curl -s -X POST \
               "https://api.apify.com/v2/acts/${APIFY_ACTOR_ID}/run-sync-get-dataset-items?token=${APIFY_TOKEN}" \
               -H "Content-Type: application/json" \
               --data "{\"searchMode\":\"hashtag\",\"searchQuery\":\"$tag\",\"resultsLimit\":200}")
-            echo "$data" | jq -c '.[]' | while read item; do
+            echo "$data" | jq -c '.[]' | while read -r item; do
               id=$(echo "$item"       | jq -r .id)
               imageUrl=$(echo "$item" | jq -r .imageUrl)
               likes=$(echo "$item"    | jq -r .likes)
               comments=$(echo "$item" | jq -r .comments)
               bookmarks=$(echo "$item" | jq -r .bookmarks)
               views=$(echo "$item"    | jq -r .views)
-              avg=$(echo "$item"      | jq -r .avgWatchTime)
+              avgWatchTime=$(echo "$item" | jq -r .avgWatchTime)
+
               curl -s -o /dev/null -X POST "${SUPABASE_URL}/rest/v1/trending_posts" \
-                -H "apikey: $SUPABASE_KEY" \
-                -H "Authorization: Bearer $SUPABASE_KEY" \
+                -H "apikey: ${SUPABASE_KEY}" \
+                -H "Authorization: Bearer ${SUPABASE_KEY}" \
                 -H "Content-Type: application/json" \
-                --data "{\"ig_post_id\":\"$id\",\"image_url\":\"$imageUrl\",\"metrics\":{\
-\"likes\":$likes,\"comments\":$comments,\"saves\":$bookmarks,\"views\":$views,\
-\"avgWatchTime\":$avg}}"
+                -H "Prefer: resolution=merge-duplicates" \
+                --data "{\"ig_post_id\":\"${id}\",\"image_url\":\"${imageUrl}\",\"metrics\":{\
+\"likes\":${likes},\"comments\":${comments},\"saves\":${bookmarks},\"views\":${views},\
+\"avgWatchTime\":${avgWatchTime}}}"
             done
           done
 
-      - name: Compute Virality Signals
+      - name: Compute Virality Signals & Upsert scored_posts
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
+          echo "➡️ Fetching trending_posts"
           curl -s "${SUPABASE_URL}/rest/v1/trending_posts?select=id,metrics,inserted_at" \
-            -H "apikey: $SUPABASE_KEY" \
-            -H "Authorization: Bearer $SUPABASE_KEY" \
-          | jq -c '.[]' | while read p; do
-              id=$(echo "$p" | jq -r .id)
-              m=$(echo "$p" | jq -c .metrics)
-              ins=$(echo "$p" | jq -r .inserted_at)
-              now=$(date +%s); ts=$(date -d "$ins" +%s)
-              age=$(( now - ts ))
-              likes=$(echo "$m" | jq -r .likes)
-              comments=$(echo "$m" | jq -r .comments)
-              saves=$(echo "$m" | jq -r .saves)
-              views=$(echo "$m" | jq -r .views || echo 1)
-              avg=$(echo "$m" | jq -r .avgWatchTime)
-              ev=$(echo "scale=6;($likes + $comments + $saves)/$age" | bc)
-              er=$(echo "scale=6;($likes + $comments + $saves)/$views" | bc)
-              cv=$(echo "scale=6;$comments/$age" | bc)
-              sr=$(echo "scale=6;$saves/$views" | bc)
-              wcr=$(echo "scale=6;$avg/($avg)" | bc)
-              signals=$(jq -n --arg ev "$ev" --arg er "$er" --arg cv "$cv" --arg sr "$sr" --arg wcr "$wcr" \
-                '{engagementVelocity:( $ev|tonumber ),engagementRate:( $er|tonumber ),commentVelocity:( $cv|tonumber ),saveRate:( $sr|tonumber ),watchCompletionRatio:( $wcr|tonumber )}')
-              curl -s -o /dev/null -X POST "${SUPABASE_URL}/rest/v1/scored_posts" \
-                -H "apikey: $SUPABASE_KEY" \
-                -H "Authorization: Bearer $SUPABASE_KEY" \
-                -H "Content-Type: application/json" \
-                -H "Prefer: resolution=merge-duplicates" \
-                --data "{\"trending_post_id\":$id,\"signals\":$signals}"
-            done
+            -H "apikey: ${SUPABASE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_KEY}" \
+          | jq -c '.[]' | while read -r p; do
+            id=$(echo "$p"          | jq -r .id)
+            metrics=$(echo "$p"     | jq -c .metrics)
+            inserted_at=$(echo "$p" | jq -r .inserted_at)
+            now=$(date +%s)
+            ts=$(date -d "$inserted_at" +%s)
+            age=$(( now - ts ))
+            [ "$age" -le 0 ] && age=1
+
+            likes=$(echo "$metrics" | jq -r .likes)
+            comments=$(echo "$metrics" | jq -r .comments)
+            saves=$(echo "$metrics"   | jq -r .saves)
+            views=$(echo "$metrics"   | jq -r .views // 1)
+            avgWatch=$(echo "$metrics"| jq -r .avgWatchTime // 0)
+
+            ev=$(echo "scale=6;($likes+$comments+$saves)/$age" | bc)
+            er=$(echo "scale=6;($likes+$comments+$saves)/$views" | bc)
+            cv=$(echo "scale=6;$comments/$age" | bc)
+            sr=$(echo "scale=6;$saves/$views" | bc)
+            wcr=$(echo "scale=6;$avgWatch/($avgWatch==0?1:$avgWatch)" | bc)
+
+            signals=$(jq -n \
+              --arg ev "$ev" \
+              --arg er "$er" \
+              --arg cv "$cv" \
+              --arg sr "$sr" \
+              --arg wcr "$wcr" \
+              '{engagementVelocity:($ev|tonumber),engagementRate:($er|tonumber),commentVelocity:($cv|tonumber),saveRate:($sr|tonumber),watchCompletionRatio:($wcr|tonumber)}')
+
+            curl -s -o /dev/null -X POST "${SUPABASE_URL}/rest/v1/scored_posts" \
+              -H "apikey: ${SUPABASE_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_KEY}" \
+              -H "Content-Type: application/json" \
+              -H "Prefer: resolution=merge-duplicates" \
+              --data "{\"trending_post_id\":${id},\"signals\":${signals}}"
+          done
