@@ -23,13 +23,18 @@ export default async function handler(req, res) {
     const { data: scoredPosts, error: e1 } = await supabaseAdmin
       .from('scored_posts')
       .select('id, signals, trending_posts(id, image_url, metrics)')
-    if (e1 || !scoredPosts) {
-      throw new Error('Failed to load scored_posts')
+    if (e1) {
+      console.error('Error loading scored_posts:', e1)
+      return res.status(200).json({ ok: true, message: 'No scored_posts yet' })
+    }
+    if (!Array.isArray(scoredPosts) || scoredPosts.length === 0) {
+      // nothing to do until your scraper+scorer has run
+      return res.status(200).json({ ok: true, message: 'No scored_posts to generate ideas from yet' })
     }
 
     // ─── 2) CLUSTER SIGNAL VECTORS ─────────────────────────────────────────────
     const vectors = scoredPosts.map((p) => Object.values(p.signals || {}))
-    const km = new KMeans({ K: 30 })
+    const km = new KMeans({ K: vectors.length < 30 ? vectors.length : 30 })
     const clusters = km.cluster(vectors)
     const picks = clusters.slice(0, 10).map((c) => c.ids[0])
 
@@ -40,7 +45,8 @@ export default async function handler(req, res) {
         .from('users')
         .select('id')
       if (e2 || !allUsers) {
-        throw new Error('Failed to load users')
+        console.error('Error loading users:', e2)
+        return res.status(200).json({ ok: true, message: 'No users to generate ideas for' })
       }
       usersList = allUsers
     } else {
@@ -58,14 +64,14 @@ export default async function handler(req, res) {
         const tp = post.trending_posts && post.trending_posts[0]
         if (!tp) continue
 
-        // 5a) Call OpenAI
+        // Call OpenAI
         const resp = await openai.chat.completions.create({
           model,
           messages: [
             {
               role: 'system',
               content:
-                'Generate EXACTLY three lines: 1) concise content prompt, 2) draft caption, 3) 5–10 comma-separated hashtags',
+                'Generate EXACTLY three lines: 1) concise prompt, 2) draft caption, 3) 5–10 comma-separated hashtags',
             },
             { role: 'user', content: `Metrics: ${JSON.stringify(tp.metrics)}` },
           ],
@@ -73,7 +79,7 @@ export default async function handler(req, res) {
         const text = (resp.choices[0].message || {}).content || ''
         const [prompt, caption, tagLine] = text.split('\n').map((l) => l.trim())
 
-        // 5b) Insert into idea_cards
+        // Insert
         await supabaseAdmin.from('idea_cards').insert([
           {
             user_id: uid,
